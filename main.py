@@ -5,7 +5,7 @@ import requests
 import os
 import dotenv
 
-DEPTH_LIMIT = 10
+DEPTH_LIMIT = 5
 NODE_CAP = 2000
 
 def clean_paper(raw_paper_dict):

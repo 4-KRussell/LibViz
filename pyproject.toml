@@ -5,7 +5,11 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
+    "igraph>=1.0.0",
+    "leidenalg>=0.12.0",
     "psycopg[binary]>=3.3.5",
+    "pycairo>=1.29.1",
     "python-dotenv>=1.2.3",
     "requests>=2.34.2",
+    "scikit-learn>=1.9.1",
 ]
