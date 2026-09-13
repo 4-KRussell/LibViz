@@ -6,6 +6,25 @@ import leidenalg
 import cairo
 from sklearn.feature_extraction.text import TfidfVectorizer
 import numpy as np
+from pyvis.network import Network
+
+def visualize_parition(edges, papers, partition):
+    net = Network(height="900px", width="100%", notebook=False)
+
+    for cluster_id, cluster in enumerate(partition):
+        for vertex in cluster:
+            paper_id, title = papers[vertex]
+            net.add_node(
+                vertex,
+                label=title[:30] if title else paper_id[:8],
+                title=title if title else paper_id,
+                group=cluster_id,
+            )
+
+    for citing_index, cited_index in edges:
+        net.add_edge(citing_index, cited_index)
+
+    net.write_html("clusters.html", notebook=False)
 
 def top_terms(tfidf_matrix, feature_names, cluster_index, n = 5):
     row = tfidf_matrix[cluster_index].toarray()[0]
@@ -27,7 +46,7 @@ def main():
         port=DB_PORT,
     )
 
-    crawl_job_id = 8
+    crawl_job_id = 11
     cursor = connection.cursor()
 
     cursor.execute("SELECT paper_id, title FROM papers WHERE crawl_job_id = %s", (crawl_job_id,))
@@ -90,6 +109,8 @@ def main():
         if len(partition[i]) > 5:
             terms = top_terms(tfidf_matrix, feature_names, i)
             print(f"Cluster {i} (size {len(partition[i])}): {terms}")
+
+    visualize_parition(edges, papers, partition)
 
 if __name__ == "__main__":
     main()

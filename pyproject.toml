@@ -10,6 +10,7 @@ dependencies = [
     "psycopg[binary]>=3.3.5",
     "pycairo>=1.29.1",
     "python-dotenv>=1.2.3",
+    "pyvis>=0.3.2",
     "requests>=2.34.2",
     "scikit-learn>=1.9.1",
 ]

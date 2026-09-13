@@ -5,8 +5,8 @@ import requests
 import os
 import dotenv
 
-DEPTH_LIMIT = 5
-NODE_CAP = 2000
+DEPTH_LIMIT = 15
+NODE_CAP = 4000
 
 def clean_paper(raw_paper_dict):
     paperId = raw_paper_dict['paperId']
@@ -24,20 +24,25 @@ def clean_paper(raw_paper_dict):
 
     return {"paperId": paperId, "title": title, "references": clean_references}
 
-def fetch_batch(paper_ids, api_key):
+def fetch_batch(paper_ids, api_key, max_retries=3):
     batch = []
     for startIndex in range(0, len(paper_ids), 500):
         chunk = paper_ids[startIndex:startIndex + 500]
 
-        result = requests.post('https://api.semanticscholar.org/graph/v1/paper/batch?fields=title,references.title,references.paperId', headers={'x-api-key': api_key}, json={'ids': chunk})
-        print(result.status_code)
-        if result.status_code == 200:
-            # print(result.json())
-            raw_paper_dict = result.json()
-            for paper_dict in raw_paper_dict:
-                batch.append(clean_paper(paper_dict))
-        else:
-            print(result.text)
+        for attempt in range(max_retries):
+            result = requests.post(
+                'https://api.semanticscholar.org/graph/v1/paper/batch?fields=title,references.title,references.paperId',
+                headers={'x-api-key': api_key},
+                json={'ids': chunk}
+            )
+            if result.status_code == 200:
+                raw_paper_dict = result.json()
+                for paper_dict in raw_paper_dict:
+                    batch.append(clean_paper(paper_dict))
+                break
+            else:
+                print(result.status_code, result.text)
+                time.sleep(3 * (attempt + 1))
         time.sleep(1.1)
 
     return batch
@@ -58,6 +63,10 @@ def bfs(seed_id, api_key, connection):
     pending_citations = []
 
     while current_depth < DEPTH_LIMIT and num_nodes < NODE_CAP:
+        remaining_budget = NODE_CAP - num_nodes
+        if len(frontier) > remaining_budget:
+            frontier = frontier[:remaining_budget]
+
         current_batch = fetch_batch(frontier, api_key)
         for node in current_batch:
             if node["paperId"] not in visited:
@@ -87,6 +96,8 @@ def bfs(seed_id, api_key, connection):
             )
     connection.commit()
 
+    return crawl_job_id
+
 def main():
     dotenv.load_dotenv()
     sem_key = os.environ.get("SEMANTIC_SCHOLAR_API_KEY")
@@ -105,8 +116,9 @@ def main():
         port=DB_PORT,
     )
 
-    paper_id = 'ARXIV:1706.03762'
-    bfs(paper_id, sem_key, connection)
+    paper_id = 'DOI:10.1038/s41586-020-2012-7'
+    crawl_job_id = bfs(paper_id, sem_key, connection)
+    print(f"Crawl job id: {crawl_job_id}")
     connection.close()
 
 if __name__ == "__main__":
