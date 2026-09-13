@@ -70,22 +70,6 @@ def main():
     sem_key = os.environ.get("SEMANTIC_SCHOLAR_API_KEY")
 
     paper_id = 'ARXIV:1706.03762'
-    # r = requests.get(f'https://api.semanticscholar.org/graph/v1/paper/{paper_id}?fields=title,references.title,references.paperId', headers={'x-api-key': sem_key})
-    # good = r.status_code
-    #
-    # if good == 200:
-    #     requestJsonDict = r.json()
-    #     print(requestJsonDict["title"])
-    #     for reference in requestJsonDict["references"]:
-    #         print(reference["title"])
-    #         print(reference["paperId"])
-    # else:
-    #     print(r.text)
-    paper_ids = ['2e9d221c206e9503ceb452302d68d10e293f2a10', '0b44fcbeea9415d400c5f5789d6b892b6f98daff', 'f52de7242e574b70410ca6fb70b79c811919fc00']
-
-    # clean_batch = fetch_batch(paper_ids, sem_key)
-    # print(clean_batch)
-
     bfs(paper_id, sem_key)
 
 if __name__ == "__main__":
