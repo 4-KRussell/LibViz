@@ -6,7 +6,7 @@ import os
 import dotenv
 
 DEPTH_LIMIT = 10
-NODE_CAP = 50
+NODE_CAP = 2000
 
 def clean_paper(raw_paper_dict):
     paperId = raw_paper_dict['paperId']
@@ -61,8 +61,10 @@ def bfs(seed_id, api_key, connection):
         current_batch = fetch_batch(frontier, api_key)
         for node in current_batch:
             if node["paperId"] not in visited:
-                cur.execute("INSERT INTO papers (paper_id, title, crawl_job_id) VALUES (%s, %s, %s)", (node["paperId"], node["title"], crawl_job_id))
-
+                cur.execute(
+                    "INSERT INTO papers (paper_id, title, crawl_job_id) VALUES (%s, %s, %s) ON CONFLICT (paper_id) DO NOTHING",
+                    (node["paperId"], node["title"], crawl_job_id)
+                )
                 print(node["title"])
                 visited.add(node["paperId"])
                 for reference in node["references"]:
@@ -79,7 +81,10 @@ def bfs(seed_id, api_key, connection):
 
     for citing_id, cited_id in pending_citations:
         if citing_id in visited and cited_id in visited:
-            cur.execute("INSERT INTO citations (citing_paper_id, cited_paper_id) VALUES (%s, %s)", (citing_id, cited_id))
+            cur.execute(
+                "INSERT INTO citations (citing_paper_id, cited_paper_id) VALUES (%s, %s) ON CONFLICT (citing_paper_id, cited_paper_id) DO NOTHING",
+                (citing_id, cited_id)
+            )
     connection.commit()
 
 def main():
