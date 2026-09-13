@@ -1,5 +1,6 @@
 import time
 
+import psycopg
 import requests
 import os
 import dotenv
@@ -41,22 +42,33 @@ def fetch_batch(paper_ids, api_key):
 
     return batch
 
-def bfs(seed_id, api_key):
+def bfs(seed_id, api_key, connection):
+
+    cur = connection.cursor()
+    cur.execute("INSERT INTO crawl_jobs (seed_paper_id) VALUES (%s) RETURNING id", (seed_id,))
+    crawl_job_id = cur.fetchone()[0]
+    connection.commit()
+
     visited = set()
     frontier = [seed_id]
     next_frontier = []
     current_depth = 0
     num_nodes = 0
 
+    pending_citations = []
+
     while current_depth < DEPTH_LIMIT and num_nodes < NODE_CAP:
         current_batch = fetch_batch(frontier, api_key)
         for node in current_batch:
             if node["paperId"] not in visited:
+                cur.execute("INSERT INTO papers (paper_id, title, crawl_job_id) VALUES (%s, %s, %s)", (node["paperId"], node["title"], crawl_job_id))
+
                 print(node["title"])
                 visited.add(node["paperId"])
                 for reference in node["references"]:
                     if reference not in visited and reference not in next_frontier:
                         next_frontier.append(reference)
+                    pending_citations.append((node["paperId"], reference))
         frontier = next_frontier
         if not frontier:
             break
@@ -65,12 +77,32 @@ def bfs(seed_id, api_key):
         num_nodes = len(visited)
         time.sleep(1.1)
 
+    for citing_id, cited_id in pending_citations:
+        if citing_id in visited and cited_id in visited:
+            cur.execute("INSERT INTO citations (citing_paper_id, cited_paper_id) VALUES (%s, %s)", (citing_id, cited_id))
+    connection.commit()
+
 def main():
     dotenv.load_dotenv()
     sem_key = os.environ.get("SEMANTIC_SCHOLAR_API_KEY")
 
+    dotenv.load_dotenv()
+    DB_HOST = os.getenv("DB_HOST")
+    DB_USER = os.getenv("DB_USER")
+    DB_PASSWORD = os.getenv("DB_PASSWORD")
+    DB_NAME = os.getenv("DB_NAME")
+    DB_PORT = os.getenv("DB_PORT")
+    connection = psycopg.connect(
+        host=DB_HOST,
+        user=DB_USER,
+        password=DB_PASSWORD,
+        dbname=DB_NAME,
+        port=DB_PORT,
+    )
+
     paper_id = 'ARXIV:1706.03762'
-    bfs(paper_id, sem_key)
+    bfs(paper_id, sem_key, connection)
+    connection.close()
 
 if __name__ == "__main__":
     main()
