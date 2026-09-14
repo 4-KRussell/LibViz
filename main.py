@@ -116,7 +116,7 @@ def db_connect():
     return connection;
 
 def main():
-    paper_id = 'DOI:10.1038/s41586-020-2012-7'
+    paper_id = '011988215d7e4d4c3d845dcf9423e7e8e505605c'
     sem_key = os.environ.get("SEMANTIC_SCHOLAR_API_KEY")
     connection = db_connect()
     crawl_job_id = bfs(paper_id, sem_key, connection)
