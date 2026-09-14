@@ -39,14 +39,14 @@ def main():
         return
 
     candidates = search_papers(query, api_key)
-    time.sleep(1.1)
+    time.sleep(1.5)
 
     for paper in candidates:
         if has_references(paper['paperId'], api_key):
             print(f"GOOD SEED: {paper['title']} ({paper['paperId']})")
         else:
             print(f"restricted: {paper['title']}")
-        time.sleep(1.1)
+        time.sleep(1.5)
 
 if __name__ == "__main__":
     main()

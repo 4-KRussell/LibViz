@@ -26,12 +26,7 @@ def visualize_parition(edges, papers, partition):
 
     net.write_html("clusters.html", notebook=False)
 
-def top_terms(tfidf_matrix, feature_names, cluster_index, n = 5):
-    row = tfidf_matrix[cluster_index].toarray()[0]
-    top_indices = row.argsort()[::-1][:n]
-    return [feature_names[i] for i in top_indices]
-
-def main():
+def db_connect():
     dotenv.load_dotenv()
     DB_HOST = os.getenv("DB_HOST")
     DB_USER = os.getenv("DB_USER")
@@ -45,17 +40,23 @@ def main():
         dbname=DB_NAME,
         port=DB_PORT,
     )
-    cursor = connection.cursor()
+    return connection
 
-    cursor.execute("SELECT crawl_job_id FROM papers GROUP BY crawl_job_id ORDER BY crawl_job_id DESC LIMIT 1")
-    crawl_job_id = cursor.fetchone()[0]
+def top_terms(tfidf_matrix, feature_names, cluster_index, n = 5):
+    row = tfidf_matrix[cluster_index].toarray()[0]
+    top_indices = row.argsort()[::-1][:n]
+    return [feature_names[i] for i in top_indices]
+
+def create_cluster_labels(crawl_job_id, connection):
+    cursor = connection.cursor()
 
     cursor.execute("SELECT paper_id, title FROM papers WHERE crawl_job_id = %s", (crawl_job_id,))
     papers = cursor.fetchall()
     print(len(papers))
 
-    cursor.execute("SELECT citing_paper_id, cited_paper_id FROM citations WHERE citing_paper_id IN (SELECT paper_id FROM papers WHERE crawl_job_id = %s) AND cited_paper_id IN (SELECT paper_id FROM papers WHERE crawl_job_id = %s)",
-                   (crawl_job_id, crawl_job_id))
+    cursor.execute(
+        "SELECT citing_paper_id, cited_paper_id FROM citations WHERE citing_paper_id IN (SELECT paper_id FROM papers WHERE crawl_job_id = %s) AND cited_paper_id IN (SELECT paper_id FROM papers WHERE crawl_job_id = %s)",
+        (crawl_job_id, crawl_job_id))
     cited_papers = cursor.fetchall()
     print(len(cited_papers))
 
@@ -87,7 +88,7 @@ def main():
     for vertex in partition[0]:
         print(papers[vertex][1])
 
-    igraph.plot(partition, target="clusters.png", vertex_size = 5, bbox =(1200, 1200))
+    igraph.plot(partition, target="clusters.png", vertex_size=5, bbox=(1200, 1200))
 
     cluster_documents = []
     for cluster in partition:
@@ -125,6 +126,15 @@ def main():
     connection.commit()
 
     visualize_parition(edges, papers, partition)
+
+def main():
+    connection = db_connect()
+    cursor = connection.cursor()
+
+    cursor.execute("SELECT crawl_job_id FROM papers GROUP BY crawl_job_id ORDER BY crawl_job_id DESC LIMIT 1")
+    crawl_job_id = cursor.fetchone()[0]
+
+    create_cluster_labels(crawl_job_id, connection)
 
 if __name__ == "__main__":
     main()

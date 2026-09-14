@@ -5,6 +5,8 @@ import requests
 import os
 import dotenv
 
+from cluster import create_cluster_labels
+
 DEPTH_LIMIT = 10
 NODE_CAP = 2000
 
@@ -38,7 +40,8 @@ def fetch_batch(paper_ids, api_key, max_retries=3):
             if result.status_code == 200:
                 raw_paper_dict = result.json()
                 for paper_dict in raw_paper_dict:
-                    batch.append(clean_paper(paper_dict))
+                    if paper_dict is not None:
+                        batch.append(clean_paper(paper_dict))
                 break
             else:
                 print(result.status_code, result.text)
@@ -115,13 +118,29 @@ def db_connect():
 
     return connection;
 
-def main():
-    paper_id = '011988215d7e4d4c3d845dcf9423e7e8e505605c'
+def run_pipeline(seed_id):
+    dotenv.load_dotenv()
     sem_key = os.environ.get("SEMANTIC_SCHOLAR_API_KEY")
     connection = db_connect()
-    crawl_job_id = bfs(paper_id, sem_key, connection)
-    print(f"Crawl job id: {crawl_job_id}")
+
+    crawl_job_id = bfs(seed_id, sem_key, connection)
+    print(f"Crawl finished. Crawl job id: {crawl_job_id}")
+
+    create_cluster_labels(crawl_job_id, connection)
+    print("Clustering finished.")
+
     connection.close()
+    return crawl_job_id
+
+
+def main():
+
+    paper_id = input("Enter Paper ID: ").strip()
+    if not paper_id:
+        print("Paper ID cannot be empty.")
+        return
+
+    run_pipeline(paper_id)
 
 if __name__ == "__main__":
     main()
