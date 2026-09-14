@@ -98,10 +98,7 @@ def bfs(seed_id, api_key, connection):
 
     return crawl_job_id
 
-def main():
-    dotenv.load_dotenv()
-    sem_key = os.environ.get("SEMANTIC_SCHOLAR_API_KEY")
-
+def db_connect():
     dotenv.load_dotenv()
     DB_HOST = os.getenv("DB_HOST")
     DB_USER = os.getenv("DB_USER")
@@ -116,7 +113,12 @@ def main():
         port=DB_PORT,
     )
 
+    return connection;
+
+def main():
     paper_id = 'DOI:10.1038/s41586-020-2012-7'
+    sem_key = os.environ.get("SEMANTIC_SCHOLAR_API_KEY")
+    connection = db_connect()
     crawl_job_id = bfs(paper_id, sem_key, connection)
     print(f"Crawl job id: {crawl_job_id}")
     connection.close()
