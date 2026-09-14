@@ -45,9 +45,10 @@ def main():
         dbname=DB_NAME,
         port=DB_PORT,
     )
-
-    crawl_job_id = 11
     cursor = connection.cursor()
+
+    cursor.execute("SELECT crawl_job_id FROM papers GROUP BY crawl_job_id ORDER BY crawl_job_id DESC LIMIT 1")
+    crawl_job_id = cursor.fetchone()[0]
 
     cursor.execute("SELECT paper_id, title FROM papers WHERE crawl_job_id = %s", (crawl_job_id,))
     papers = cursor.fetchall()
@@ -108,7 +109,20 @@ def main():
     for i in range(len(partition)):
         if len(partition[i]) > 5:
             terms = top_terms(tfidf_matrix, feature_names, i)
-            print(f"Cluster {i} (size {len(partition[i])}): {terms}")
+            label = ", ".join(terms)
+            print(f"Cluster {i} (size {len(partition[i])}): {label}")
+
+            cursor.execute("INSERT INTO clusters (crawl_job_id, label) VALUES (%s, %s) RETURNING cluster_id",
+                           (crawl_job_id, label))
+            new_cluster_id = cursor.fetchone()[0]
+            for vertex in partition[i]:
+                paper_id = papers[vertex][0]
+                cursor.execute(
+                    "UPDATE papers SET cluster_id = %s WHERE paper_id = %s",
+                    (new_cluster_id, paper_id)
+                )
+
+    connection.commit()
 
     visualize_parition(edges, papers, partition)
 
